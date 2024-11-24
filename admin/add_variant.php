@@ -1,84 +1,54 @@
 <?php
-include '../admin/config.php';
+include_once 'config.php'; // Kết nối với cơ sở dữ liệu
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $size = $_POST['size'];
-    $color = $_POST['color'];
-    $price = $_POST['price'];
+// Biến để lưu giá sản phẩm
+$product_price = 0;
+$selected_product_id = null;
 
-    $stmt = $conn->prepare("INSERT INTO variants (size, color, price) VALUES (?, ?, ?)");
-    $stmt->bind_param("ssd", $size, $color, $price);
+// Lấy danh sách sản phẩm
+$product_result = $conn->query("SELECT product_id, name FROM products");
 
-    if ($stmt->execute()) {
-        echo "Variant added successfully!";
-    } else {
-        echo "Error: " . $stmt->error;
-    }
+// Kiểm tra nếu form được submit
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $selected_product_id = $_POST['product_id']; // Lấy sản phẩm được chọn
+    $size = $_POST['size']; // Lấy kích thước
+    $color = $_POST['color']; // Lấy màu sắc
+    $price_adjustment = $_POST['price_adjustment']; // Lấy giá biến thể
+    $stock = $_POST['stock']; // Lấy số lượng tồn kho
+
+    // Truy vấn giá sản phẩm
+    $stmt = $conn->prepare("SELECT price FROM products WHERE product_id = ?");
+    $stmt->bind_param("i", $selected_product_id);
+    $stmt->execute();
+    $stmt->bind_result($product_price);
+    $stmt->fetch();
+    $stmt->close();
+
+    // Tính giá biến thể
+    $variant_price = $product_price + $price_adjustment;
+
+    // Thêm biến thể vào cơ sở dữ liệu
+    $insert_stmt = $conn->prepare("INSERT INTO product_variants (product_id, size, color, price, stock) VALUES (?, ?, ?, ?, ?)");
+    $insert_stmt->bind_param("issdi", $selected_product_id, $size, $color, $variant_price, $stock);
+    $insert_stmt->execute();
+    $insert_stmt->close();
+
+    // Đảm bảo rằng dữ liệu đã được thêm vào thành công
+    echo "<script>alert('Biến thể đã được thêm thành công!'); window.location.href = 'add_variant.php';</script>";
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Variant</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <title>Thêm Biến Thể</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
-<style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        .sidebar {
-            height: 100vh;
-            background-color: #343a40;
-            color: white;
-            position: fixed;
-            width: 250px;
-            top: 0;
-            left: 0;
-            overflow-y: auto;
-        }
-        .sidebar h2 {
-            padding: 15px;
-            font-size: 1.5rem;
-        }
-        .sidebar a {
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            display: block;
-        }
-        .sidebar a:hover {
-            background-color: #495057;
-            color: white;
-        }
-        .content {
-            margin-left: 250px;
-            padding: 20px;
-        }
-        .list-group-item {
-            background-color: #343a40;
-            border: none;
-        }
-        .list-group-item a {
-            color: white;
-        }
-        .list-group-item a:hover {
-            background-color: #495057;
-            color: white;
-        }
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-            }
-            .content {
-                margin-left: 0;
-            }
-        }
-    </style>
 <body>
 <div class="sidebar">
         <h2 class="text-center">Welcome admin</h2>
@@ -92,23 +62,97 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <li class="list-group-item"><a href="add_variant.php">Biến Thể</a></li>
         </ul>
     </div>
-    <div style="margin-left: 300px;" class="container mt-5">
-        <h2>Add Variant</h2>
+    <div class="container">
+       <div class="row">
+        <div class="col-md-6">
+        <h2>Thêm Biến Thể Mới</h2>
         <form action="add_variant.php" method="POST">
+            <!-- Dropdown chọn sản phẩm -->
             <div class="mb-3">
-                <label for="size" class="form-label">Size</label>
-                <input type="text" class="form-control" name="size" id="size" required>
+                <label for="product_id" class="form-label">Sản phẩm:</label>
+                <select name="product_id" id="product_id" class="form-control" required>
+                    <option value="">Chọn sản phẩm</option>
+                    <?php while ($product = $product_result->fetch_assoc()) { ?>
+                        <option value="<?= $product['product_id'] ?>" 
+                            <?= $selected_product_id == $product['product_id'] ? 'selected' : '' ?> >
+                            <?= $product['name'] ?>
+                        </option>
+                    <?php } ?>
+                </select>
             </div>
+
+            <!-- Hiển thị giá gốc sản phẩm -->
             <div class="mb-3">
-                <label for="color" class="form-label">Color</label>
-                <input type="text" class="form-control" name="color" id="color" required>
+                <label for="base_price" class="form-label">Giá gốc:</label>
+                <input class="form-control" type="number" name="base_price" id="base_price" 
+                    value="<?= $product_price ?>" readonly>
             </div>
+
+            <!-- Các trường khác -->
             <div class="mb-3">
-                <label for="price" class="form-label">Price</label>
-                <input type="number" step="0.01" class="form-control" name="price" id="price" required>
+                <label for="size" class="form-label">Kích thước:</label>
+                <select class="form-control" name="size" id="size" required>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="XXL">XXL</option>
+                </select>
             </div>
-            <button type="submit" class="btn btn-primary">Add Variant</button>
+
+            <div class="mb-3">
+                <label for="color" class="form-label">Màu sắc:</label>
+                <select name="color" id="color" class="form-control" required>
+                    <option value="red">Đỏ</option>
+                    <option value="blue">Xanh dương</option>
+                    <option value="green">Xanh lá</option>
+                    <option value="yellow">Vàng</option>
+                    <option value="black">Đen</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="price_adjustment" class="form-label">Giá Biến Thể:</label>
+                <input type="number" class="form-control" name="price_adjustment" id="price_adjustment" value="0" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="stock" class="form-label">Số lượng tồn kho:</label>
+                <input class="form-control" type="number" name="stock" id="stock" min="0" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Thêm Biến Thể</button>
         </form>
+        </div>
+       </div>
     </div>
+
+    <script>
+    // Khi chọn sản phẩm, gửi yêu cầu AJAX lấy giá
+    $('#product_id').change(function() {
+        var product_id = $(this).val();
+        
+        if (product_id) {
+            $.ajax({
+                url: 'get_price.php', // URL đến file xử lý giá sản phẩm
+                type: 'POST',
+                data: { product_id: product_id },
+                success: function(response) {
+                    var data = JSON.parse(response);
+                    // Cập nhật giá sản phẩm vào ô input
+                    if (data.price) {
+                        $('#base_price').val(data.price);
+                    } else {
+                        $('#base_price').val(0); // Nếu không có giá, đặt là 0
+                    }
+                }
+            });
+        } else {
+            // Nếu không chọn sản phẩm, reset giá về 0
+            $('#base_price').val(0);
+        }
+    });
+</script>
+
 </body>
 </html>

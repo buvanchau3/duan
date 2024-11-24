@@ -3,7 +3,7 @@
 // session_start();
 
 include_once '../admin/config.php';
-$cart = new Cart($_SESSION['user_id'], $conn);
+// $cart = new Cart($_SESSION['user_id'], $conn);
 
 class Cart {
     private $user_id;

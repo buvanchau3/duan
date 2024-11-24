@@ -32,7 +32,7 @@ $result = $conn->query($sql);
                 <!-- Product Card -->
                 <div class="bg-white rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-300">
                     <div class="relative">
-                        <a href="details.php?id=<?php echo $row['product_id']; ?>">
+                        <a href="details.php?product_id=<?php echo $row['product_id']; ?>">
                             <img class="w-full h-64 object-cover transition-transform duration-300 hover:scale-105" src="<?php echo $row['image_path']; ?>" alt="<?php echo $row['name']; ?>">
                         </a>
                         <!-- Nút Yêu thích -->
@@ -70,8 +70,13 @@ $result = $conn->query($sql);
                             <input type="hidden" name="product_id" value="<?php echo $row['product_id']; ?>">
                             <button class="btn btn-success" type="submit">Thêm vào Giỏ</button>
                         </form>
-
-                            <button class="flex items-center bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600 transition-colors duration-200">Mua Ngay</button>
+                        <form action="../html/details.php" method="GET">
+                        <!-- Gửi thông tin sản phẩm đến trang chi tiết -->
+                        <input type="hidden" name="product_id" value="<?php echo $row['product_id']; ?>">
+                        <button class="flex items-center bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600 transition-colors duration-200" type="submit">
+                            Mua Ngay
+                        </button>
+                    </form>
                         </div>
                     </div>
                 </div>
